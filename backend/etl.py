@@ -6,7 +6,7 @@ from datetime import datetime
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'jason0808',  # Cambia por tu contraseña de MySQL
+    'password': 'your_password',  # Cambia por tu contraseña de MySQL
     'database': 'fitness_app'
 }
 
@@ -20,6 +20,7 @@ async def extract_weather(city='San Jose'):
         response = await client.get(url)
         if response.status_code == 200:
             return response.json()
+            
         return None
 
 # Función para transformar datos (Transform)
@@ -50,7 +51,7 @@ def load_weather(cleaned_data):
     conn = mysql.connector.connect(**db_config)
     cursor = conn.cursor()
     query = """
-    INSERT INTO cleaned_weather (city, temperature, humidity, wind_speed, pressure, condition, uv, chance_of_rain, query_date)
+    INSERT INTO cleaned_weather (city, temperature, humidity, wind_speed, pressure, weather_condition, uv, chance_of_rain, query_date)
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     cursor.execute(query, (

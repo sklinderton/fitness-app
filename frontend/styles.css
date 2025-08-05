@@ -1,0 +1,124 @@
+/* Reset global */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Fondo con imagen y superposición oscura */
+body {
+  background: 
+    linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+    url('images/natacion.jpg') no-repeat center center fixed;
+  background-size: cover;
+  color: #eee;
+  padding: 40px 20px;
+  min-height: 100vh;
+}
+
+/* Títulos */
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 30px;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 2px 2px 8px #000;
+}
+
+h2 {
+  font-size: 1.8rem;
+  margin: 40px 0 20px;
+  color: #ffd700;
+  border-bottom: 2px solid #ffd700;
+  padding-bottom: 5px;
+}
+
+/* Formularios */
+form {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  background: #333;
+  color: #eee;
+  font-size: 1rem;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  background-color: #444;
+}
+
+/* Botones */
+button {
+  margin-top: 20px;
+  padding: 14px;
+  width: 100%;
+  font-size: 1.1rem;
+  font-weight: bold;
+  background-color: #00b894;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background-color: #019875;
+}
+
+/* Resultados y Datos */
+#cleaned-data,
+#result {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  padding: 20px;
+  border-radius: 12px;
+  margin: 0 auto 30px;
+  max-width: 700px;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #fff;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  body {
+    padding: 20px 10px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  form {
+    padding: 16px;
+  }
+}
+

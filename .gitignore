@@ -1,0 +1,9 @@
+# Ignora la carpeta "__pycache__" (Python)
+__pycache__/
+
+#Ignora todos los .pdf
+*.pdf
+
+# Virtual environments
+venv/
+.env

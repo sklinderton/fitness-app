@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css" />
+    <title>Aplicación Fitness al Aire Libre</title>
+
+</head>
+<body>
+    <h1>Aplicación Fitness al Aire Libre</h1>
+
+    <h2>Registrar Usuario</h2>
+    <form id="register-form">
+        <label for="name">Nombre:</label>
+        <input type="text" id="name" required><br>
+        <label for="sex">Sexo:</label>
+        <select id="sex" required>
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+            <option value="Other">Otro</option>
+        </select><br>
+        <label for="weight">Peso (kg):</label>
+        <input type="number" id="weight" step="0.1" required><br>
+        <label for="height">Altura (cm):</label>
+        <input type="number" id="height" step="0.1" required><br>
+        <label for="age">Edad:</label>
+        <input type="number" id="age" required><br>
+        <button type="submit">Registrar</button>
+    </form>
+
+    <h2>Consultar Actividad</h2>
+    <form id="activity-form">
+        <label for="city">Ciudad:</label>
+        <input type="text" id="city" required><br>
+        <label for="activity">Actividad:</label>
+        <select id="activity" required>
+            <option value="natación">Natación</option>
+            <option value="correr">Correr</option>
+            <option value="voleibol de playa">Voleibol de playa</option>
+            <option value="ciclismo">Ciclismo</option>
+            <option value="senderismo">Senderismo</option>
+            <option value="kayak">Kayak</option>
+            <option value="surf">Surf</option>
+            <option value="tenis">Tenis</option>
+            <option value="escalada al aire libre">Escalada al aire libre</option>
+            <option value="yoga al aire libre">Yoga al aire libre</option>
+        </select><br>
+        <label for="user_id">ID de usuario:</label>
+        <input type="number" id="user_id" required><br>
+        <button type="submit">Consultar</button>
+    </form>
+
+    <h2>Resultado de Consulta</h2>
+    <div id="result"></div>
+
+    <h2>Datos Climáticos Procesados</h2>
+    <div id="cleaned-data"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

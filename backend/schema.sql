@@ -23,7 +23,7 @@ CREATE TABLE cleaned_weather (
     humidity INT NOT NULL,
     wind_speed FLOAT NOT NULL,
     pressure INT NOT NULL,
-    condition VARCHAR(100) NOT NULL,
+    weather_condition VARCHAR(100) NOT NULL,
     uv FLOAT NOT NULL,
     chance_of_rain INT NOT NULL,
     query_date DATETIME NOT NULL
