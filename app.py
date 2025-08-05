@@ -4,15 +4,21 @@ import mysql.connector
 import httpx
 from datetime import datetime
 from typing import Literal
+from contextlib import closing
+import os
 
+# Crear instancia de FastAPI
 app = FastAPI()
 
-# Configuración de la base de datos MySQL
-db_config = {
+# Configuración de la base de datos
+DB_CONFIG = {
     'host': 'localhost',
+    'port': 3306,
     'user': 'root',
-    'password': 'jason0808',  # Cambia por tu contraseña de MySQL
-    'database': 'fitness_app'
+    'password': 'junior123',
+    'database': 'fitness_app',
+    'pool_name': 'fitness_pool',
+    'pool_size': 5
 }
 
 # Clave de la API de WeatherAPI.com
@@ -25,7 +31,20 @@ ACTIVITIES = [
 ]
 
 
-# Modelos Pydantic para validación de datos
+# Crear pool de conexiones al iniciar
+@app.on_event("startup")
+def startup_db():
+    try:
+        # Crear pool de conexiones
+        mysql.connector.connect(**DB_CONFIG)
+        print("✅ Pool de conexiones a MySQL creado")
+    except mysql.connector.Error as err:
+        print(f"❌ Error al conectar con MySQL: {err}")
+        # Salir si no hay conexión a la base de datos
+        os._exit(1)
+
+
+# Modelos Pydantic
 class User(BaseModel):
     name: str
     sex: Literal['M', 'F', 'Other']
@@ -40,20 +59,48 @@ class ActivityCheck(BaseModel):
     user_id: int
 
 
-# Función para obtener datos climáticos desde WeatherAPI.com
+# Obtener conexión de la base de datos
+def get_db_connection():
+    try:
+        return mysql.connector.connect(pool_name='fitness_pool')
+    except mysql.connector.Error as err:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error de conexión a la base de datos: {err}"
+        )
+
+
+# Obtener datos climáticos
 async def get_weather(city: str):
-    async with httpx.AsyncClient() as client:
-        url = f'http://api.weatherapi.com/v1/forecast.json?key={WEATHER_API_KEY}&q={city}&days=1&aqi=yes'
-        response = await client.get(url)
-        if response.status_code == 200:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            url = f'http://api.weatherapi.com/v1/forecast.json?key={WEATHER_API_KEY}&q={city}&days=1&aqi=yes'
+            response = await client.get(url)
+            response.raise_for_status()
             return response.json()
-        return None
+        except httpx.RequestError as err:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error de conexión con WeatherAPI: {str(err)}"
+            )
+        except httpx.HTTPStatusError as err:
+            raise HTTPException(
+                status_code=err.response.status_code,
+                detail=f"WeatherAPI respondió con error: {str(err)}"
+            )
 
 
-# Evaluar si es seguro realizar la actividad según el clima
+# Evaluar seguridad de la actividad
 def evaluate_activity(weather_data, activity: str):
     current = weather_data['current']
-    forecast_hour = weather_data['forecast']['forecastday'][0]['hour'][0]
+    forecast = weather_data['forecast']['forecastday'][0]
+
+    # Usar datos de la hora actual o la próxima hora
+    current_hour = datetime.now().hour
+    forecast_hour = next(
+        (hour for hour in forecast['hour'] if hour['time'].startswith(f"{current_hour:02d}")),
+        forecast['hour'][0]
+    )
 
     temp = current['temp_c']
     humidity = current['humidity']
@@ -63,61 +110,95 @@ def evaluate_activity(weather_data, activity: str):
     chance_of_rain = forecast_hour['chance_of_rain']
     gust_speed = current['gust_kph'] / 3.6  # Convertir a m/s
 
-    # Reglas para determinar si es seguro
+    # Reglas de seguridad
     if 'rain' in condition or 'thunderstorm' in condition or chance_of_rain > 50:
         return f"No es recomendable practicar {activity} debido a {condition} o alta probabilidad de lluvia ({chance_of_rain}%)."
     if uv_index > 7:
         return f"Evita {activity} por alto índice UV ({uv_index}). Usa protector solar."
     if gust_speed > 15:
-        return f"Las ráfagas de viento son muy fuertes ({gust_speed} m/s) para {activity}."
+        return f"Las ráfagas de viento son muy fuertes ({gust_speed:.1f} m/s) para {activity}."
     if temp < 5 or temp > 35:
         return f"La temperatura ({temp}°C) no es ideal para {activity}."
     return f"¡Es un buen momento para practicar {activity}!"
 
 
+# Endpoint para registrar usuario
 @app.post('/api/register')
 async def register_user(user: User):
-    try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
-        query = """
-        INSERT INTO users (name, sex, weight, height, age)
-        VALUES (%s, %s, %s, %s, %s)
-        """
-        cursor.execute(query, (user.name, user.sex, user.weight, user.height, user.age))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return {'message': 'Usuario registrado con éxito'}
-    except mysql.connector.Error as err:
-        raise HTTPException(status_code=500, detail=f"Error en la base de datos: {str(err)}")
+    with closing(get_db_connection()) as conn:
+        with closing(conn.cursor()) as cursor:
+            try:
+                query = """
+                INSERT INTO users (name, sex, weight, height, age)
+                VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(query, (
+                    user.name,
+                    user.sex,
+                    user.weight,
+                    user.height,
+                    user.age
+                ))
+                conn.commit()
+                return {'message': 'Usuario registrado con éxito', 'user_id': cursor.lastrowid}
+            except mysql.connector.Error as err:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error en la base de datos: {str(err)}"
+                )
 
 
+# Endpoint para verificar actividad
 @app.post('/api/check_activity')
 async def check_activity(data: ActivityCheck):
     if data.activity not in ACTIVITIES:
-        raise HTTPException(status_code=400, detail="Actividad no válida")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Actividad no válida. Opciones válidas: {', '.join(ACTIVITIES)}"
+        )
 
-    weather_data = await get_weather(data.city)
-    if not weather_data:
-        raise HTTPException(status_code=400, detail='No se pudieron obtener los datos climáticos')
+    try:
+        weather_data = await get_weather(data.city)
+    except HTTPException as he:
+        # Guardar error en base de datos
+        with closing(get_db_connection()) as conn:
+            with closing(conn.cursor()) as cursor:
+                query = """
+                INSERT INTO queries (user_id, city, activity, recommendation, query_date)
+                VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(query, (
+                    data.user_id,
+                    data.city,
+                    data.activity,
+                    f"Error al obtener datos climáticos: {he.detail}",
+                    datetime.now()
+                ))
+                conn.commit()
+        raise he
 
     recommendation = evaluate_activity(weather_data, data.activity)
 
-    # Guardar consulta en la base de datos
-    try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
-        query = """
-        INSERT INTO queries (user_id, city, activity, recommendation, query_date)
-        VALUES (%s, %s, %s, %s, %s)
-        """
-        cursor.execute(query, (data.user_id, data.city, data.activity, recommendation, datetime.now()))
-        conn.commit()
-        cursor.close()
-        conn.close()
-    except mysql.connector.Error as err:
-        raise HTTPException(status_code=500, detail=f"Error en la base de datos: {str(err)}")
+    with closing(get_db_connection()) as conn:
+        with closing(conn.cursor()) as cursor:
+            try:
+                query = """
+                INSERT INTO queries (user_id, city, activity, recommendation, query_date)
+                VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(query, (
+                    data.user_id,
+                    data.city,
+                    data.activity,
+                    recommendation,
+                    datetime.now()
+                ))
+                conn.commit()
+            except mysql.connector.Error as err:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error al guardar consulta: {str(err)}"
+                )
 
     return {
         'recommendation': recommendation,
@@ -132,21 +213,28 @@ async def check_activity(data: ActivityCheck):
     }
 
 
+# Endpoint para obtener datos limpios
 @app.get('/api/cleaned_data')
 async def get_cleaned_data():
-    try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM cleaned_weather")
-        data = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return data
-    except mysql.connector.Error as err:
-        raise HTTPException(status_code=500, detail=f"Error en la base de datos: {str(err)}")
+    with closing(get_db_connection()) as conn:
+        with closing(conn.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute("SELECT * FROM cleaned_weather")
+                return cursor.fetchall()
+            except mysql.connector.Error as err:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error al obtener datos: {str(err)}"
+                )
 
 
-if __name__ == '__main__':
+# Punto de entrada principal
+if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        app,  # Cambiado de "main:app" a app
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="debug"
+    )
